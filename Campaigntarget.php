@@ -132,7 +132,8 @@ class CRM_Report_Form_Contribute_Campaigntarget extends CRM_Report_Form {
       ),
       'civicrm_campaign' =>
       array('dao' => 'CRM_Contribute_DAO_Contribution',
-        'fields' => array('goal_revenue' => array('title' => ts('Contributions Target'), 'type' => CRM_Utils_Type::T_MONEY),),
+        'fields' => 
+        array('goal_revenue' => array('title' => ts('Contributions Target'), 'type' => CRM_Utils_Type::T_MONEY),),
         'grouping' => 'contri-fields',
       ),
       'civicrm_contribution' =>
@@ -141,11 +142,6 @@ class CRM_Report_Form_Contribute_Campaigntarget extends CRM_Report_Form {
         //'bao'           => 'CRM_Contribute_BAO_Contribution',
         'fields' =>
         array(
-          'contribution_source' => array('title' => ts('Source'), ),
-          'currency' =>
-          array('required' => TRUE,
-            'no_display' => TRUE,
-          ),         
           'total_amount' =>
           array('title' => ts('Contribution Amount Stats'),
             'default' => TRUE,          
@@ -153,9 +149,15 @@ class CRM_Report_Form_Contribute_Campaigntarget extends CRM_Report_Form {
             array('sum' => ts('Contributions Aggregate'),
               'surplus' => ts('Contributions Surplus'),
               'count' => ts('Contributions'),
-              'avg' => ts('Contributions Avg'),
-             
+              'avg' => ts('Contributions Avg'), 
             ),
+          ),
+          'contribution_source' => 
+          array('title' => ts('Source'), 
+          ),
+          'currency' =>
+          array('required' => TRUE,
+            'no_display' => TRUE,
           ),
         ),  
         'grouping' => 'contri-fields',
@@ -381,26 +383,28 @@ class CRM_Report_Form_Contribute_Campaigntarget extends CRM_Report_Form {
                     $select[] = "SUM({$field['dbAlias']}) as {$tableName}_{$fieldName}_{$stat}";
                     $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['title'] = $label;
                     $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['type'] = $field['type'];
-                 //   $this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
-                    break;
-                  case 'surplus':
-                    $select[] = "(SUM({$field['dbAlias']}) - )  as {$tableName}_{$fieldName}_{$stat}";
+                    //$this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
+                    break;                 
+                 case 'surplus':                    
+                    $select[] = "SUM(contribution_civireport.total_amount) as civicrm_contribution_total_amount_sum, CASE WHEN SUM(contribution_civireport.total_amount) -  
+                    campaign_civireport.goal_revenue <= 0 THEN 0 ELSE SUM(contribution_civireport.total_amount) -  
+                    campaign_civireport.goal_revenue  END as civicrm_contribution_total_amount_surplus";
                     $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['type'] = $field['type'];
-                    $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['title'] = $label;
-                 //   $this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
+                    $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['title'] = $label; 
+                    //$this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
                     break;
                   case 'count':
                     $select[] = "COUNT({$field['dbAlias']}) as {$tableName}_{$fieldName}_{$stat}";
                     $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['type'] = CRM_Utils_Type::T_INT;
                     $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['title'] = $label;
-                //    $this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
+                    //$this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
                     break;
 
                   case 'avg':
                     $select[] = "ROUND(AVG({$field['dbAlias']}),2) as {$tableName}_{$fieldName}_{$stat}";
                     $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['type'] = $field['type'];
                     $this->_columnHeaders["{$tableName}_{$fieldName}_{$stat}"]['title'] = $label;
-                //    $this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
+                    //$this->_statFields[] = "{$tableName}_{$fieldName}_{$stat}";
                     break;
                 
                 }
@@ -531,6 +535,7 @@ class CRM_Report_Form_Contribute_Campaigntarget extends CRM_Report_Form {
     else {
       $this->_groupBy = "GROUP BY {$this->_aliases['civicrm_contact']}.id";
     }
+
   }
 
   function storeWhereHavingClauseArray(){
@@ -558,7 +563,6 @@ class CRM_Report_Form_Contribute_Campaigntarget extends CRM_Report_Form {
 
     $select = "SELECT
 COUNT({$this->_aliases['civicrm_contribution']}.total_amount )        as civicrm_contribution_total_amount_count,
-({$this->_aliases['civicrm_contribution']}.total_amount)              as civicrm_contribution_total_amount_surplus,
 SUM({$this->_aliases['civicrm_contribution']}.total_amount )          as civicrm_contribution_total_amount_sum,
 ROUND(AVG({$this->_aliases['civicrm_contribution']}.total_amount), 2) as civicrm_contribution_total_amount_avg,
 
@@ -568,7 +572,6 @@ ROUND(AVG({$this->_aliases['civicrm_contribution']}.total_amount), 2) as civicrm
     if ($softCredit) {
       $select .= ",
 COUNT({$this->_aliases['civicrm_contribution_soft']}.amount )        as civicrm_contribution_soft_soft_amount_count,
-({$this->_aliases['civicrm_contribution_soft']}.amount )             as civicrm_contribution_soft_soft_amount_surplus,
 SUM({$this->_aliases['civicrm_contribution_soft']}.amount )          as civicrm_contribution_soft_soft_amount_sum,
 ROUND(AVG({$this->_aliases['civicrm_contribution_soft']}.amount), 2) as civicrm_contribution_soft_soft_amount_avg";
     }
@@ -626,6 +629,7 @@ ROUND(AVG({$this->_aliases['civicrm_contribution_soft']}.amount), 2) as civicrm_
   }
 
   function postProcess() {
+
     $this->buildACLClause($this->_aliases['civicrm_contact']);
     parent::postProcess();
   }
